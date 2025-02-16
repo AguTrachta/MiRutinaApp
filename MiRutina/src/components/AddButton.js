@@ -4,7 +4,11 @@ import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
 export default function AddButton({ onPress }) {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.button}>
+    <TouchableOpacity 
+      onPress={onPress} 
+      style={styles.button}
+      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+    >
       <Text style={styles.text}>+</Text>
     </TouchableOpacity>
   );

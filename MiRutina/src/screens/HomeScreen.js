@@ -9,38 +9,36 @@ import {
   StyleSheet 
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import CustomButton from '../components/CustomButton';
 import AddButton from '../components/AddButton';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const route = useRoute();
   const [name, setName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
-  const [routines, setRoutines] = useState([]); // Lista de rutinas (inicialmente vacía)
+  const [routines, setRoutines] = useState([]); // Lista de rutinas
 
   useEffect(() => {
     checkStoredName();
   }, []);
 
-  // Configura el botón (+) en la cabecera para navegar a RoutineScreen en modo "add"
+  // Configura el botón (+) en la cabecera para navegar a RoutineScreen en modo "add" con un callback
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <AddButton onPress={() => navigation.navigate('RoutineScreen', { mode: 'add' })} />
-      )
+        <AddButton
+          onPress={() =>
+            navigation.navigate('RoutineScreen', {
+              mode: 'add',
+              onSave: (newRoutine) =>
+                setRoutines((prevRoutines) => [...prevRoutines, newRoutine]),
+            })
+          }
+        />
+      ),
     });
   }, [navigation]);
-
-  // Si se regresa desde RoutineScreen con una nueva rutina, se actualiza la lista
-  useEffect(() => {
-    if (route.params?.newRoutine) {
-      setRoutines(prev => [...prev, route.params.newRoutine]);
-      // Limpiamos el parámetro para que no se vuelva a agregar
-      navigation.setParams({ newRoutine: undefined });
-    }
-  }, [route.params?.newRoutine]);
 
   const checkStoredName = async () => {
     try {
@@ -68,7 +66,9 @@ export default function HomeScreen() {
   const renderRoutineItem = ({ item }) => (
     <TouchableOpacity
       style={styles.routineItem}
-      onPress={() => navigation.navigate('RoutineScreen', { mode: 'view', routine: item })}
+      onPress={() =>
+        navigation.navigate('RoutineScreen', { mode: 'view', routine: item })
+      }
     >
       <Text style={styles.routineText}>{item.name}</Text>
     </TouchableOpacity>
@@ -109,18 +109,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  inputContainer: {
-    marginTop: 40,
-    alignItems: 'center',
-  },
-  label: {
-    fontSize: 18,
-    marginBottom: 8,
-  },
+  container: { flex: 1, padding: 16 },
+  inputContainer: { marginTop: 40, alignItems: 'center' },
+  label: { fontSize: 18, marginBottom: 8 },
   input: {
     width: '80%',
     borderWidth: 1,
@@ -129,25 +120,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 5,
   },
-  contentContainer: {
-    flex: 1,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    fontSize: 18,
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  noRoutines: {
-    fontSize: 16,
-    color: '#777',
-    marginVertical: 20,
-  },
+  contentContainer: { flex: 1, alignItems: 'center', marginTop: 20 },
+  greeting: { fontSize: 24, fontWeight: 'bold' },
+  subtitle: { fontSize: 18, marginTop: 8, marginBottom: 20 },
+  noRoutines: { fontSize: 16, color: '#777', marginVertical: 20 },
   routineItem: {
     padding: 10,
     borderWidth: 1,
@@ -156,7 +132,5 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 10,
   },
-  routineText: {
-    fontSize: 16,
-  },
+  routineText: { fontSize: 16 },
 });

@@ -1,44 +1,33 @@
 // src/screens/HomeScreen.js
-import React, { useEffect, useState, useLayoutEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  FlatList, 
-  TouchableOpacity, 
-  StyleSheet 
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import CustomButton from '../components/CustomButton';
-import AddButton from '../components/AddButton';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [name, setName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
-  const [routines, setRoutines] = useState([]); // Lista de rutinas
+  const [routines, setRoutines] = useState([]);
 
   useEffect(() => {
     checkStoredName();
   }, []);
 
-  // Configura el botón (+) en la cabecera para navegar a RoutineScreen en modo "add" con un callback
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <AddButton
-          onPress={() =>
-            navigation.navigate('RoutineScreen', {
-              mode: 'add',
-              onSave: (newRoutine) =>
-                setRoutines((prevRoutines) => [...prevRoutines, newRoutine]),
-            })
-          }
-        />
-      ),
-    });
-  }, [navigation]);
+  // Cada vez que Home tenga foco, carga las rutinas guardadas
+  useFocusEffect(
+    useCallback(() => {
+      loadRoutines();
+    }, [])
+  );
 
   const checkStoredName = async () => {
     try {
@@ -60,6 +49,17 @@ export default function HomeScreen() {
       setShowNameInput(false);
     } catch (error) {
       console.log('Error al guardar el nombre:', error);
+    }
+  };
+
+  const loadRoutines = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('routines');
+      if (stored) {
+        setRoutines(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.log('Error al cargar rutinas:', error);
     }
   };
 
@@ -92,12 +92,20 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>¡Hola, {name}!</Text>
           <Text style={styles.subtitle}>¿Qué vas a entrenar hoy?</Text>
 
+          {/* Botón para agregar nueva rutina */}
+          <TouchableOpacity
+            style={styles.addRoutineButton}
+            onPress={() => navigation.navigate('RoutineScreen', { mode: 'add' })}
+          >
+            <Text style={styles.addRoutineButtonText}>Agregar Rutina</Text>
+          </TouchableOpacity>
+
           {routines.length === 0 ? (
             <Text style={styles.noRoutines}>No hay rutinas creadas</Text>
           ) : (
             <FlatList
               data={routines}
-              keyExtractor={(item, index) => index.toString()}
+              keyExtractor={(item, index) => (item.id ? item.id.toString() : index.toString())}
               renderItem={renderRoutineItem}
               contentContainerStyle={{ width: '100%' }}
             />
@@ -133,4 +141,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   routineText: { fontSize: 16 },
+  addRoutineButton: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 5,
+    marginBottom: 20,
+  },
+  addRoutineButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
 });

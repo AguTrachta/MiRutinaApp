@@ -1,5 +1,5 @@
 // src/screens/RoutineScreen.js
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -12,6 +12,32 @@ import {
 import CustomButton from '../components/CustomButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import StatsScreen from './StatsScreen'; // Modal deslizable
+
+// Componente para el formulario de agregar ejercicio (se usa React.memo para evitar re-render innecesario)
+const AddExerciseForm = React.memo(({ 
+  newExerciseName, 
+  onChangeText, 
+  onSave, 
+  onCancel 
+}) => {
+  return (
+    <View style={styles.newExerciseFormGlobal}>
+      <TextInput
+        style={styles.input}
+        placeholder="Nombre del ejercicio"
+        value={newExerciseName}
+        onChangeText={onChangeText}
+        autoFocus={true}
+        blurOnSubmit={false}
+        returnKeyType="done"
+        onSubmitEditing={() => {}}
+      />
+      <CustomButton title="Guardar Ejercicio" onPress={onSave} />
+      <CustomButton title="Cancelar" onPress={onCancel} />
+    </View>
+  );
+});
 
 export default function RoutineScreen() {
   const navigation = useNavigation();
@@ -24,7 +50,10 @@ export default function RoutineScreen() {
   const [currentRoutine, setCurrentRoutine] = useState(routine || null);
   // Controla cuál ejercicio está expandido (solo uno a la vez)
   const [expandedExerciseId, setExpandedExerciseId] = useState(null);
-
+  // Estado para controlar la visibilidad del modal de Stats
+  const [isStatsVisible, setIsStatsVisible] = useState(false);
+  // Estado para almacenar el ejercicio seleccionado (para mostrar su nombre en Stats)
+  const [selectedExercise, setSelectedExercise] = useState(null);
   // Estados para el formulario de agregar un ejercicio nuevo (global)
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseNameGlobal, setNewExerciseNameGlobal] = useState('');
@@ -70,11 +99,7 @@ export default function RoutineScreen() {
 
   // Alterna la expansión de un ejercicio
   const toggleExerciseExpansion = (exerciseId) => {
-    if (expandedExerciseId === exerciseId) {
-      setExpandedExerciseId(null);
-    } else {
-      setExpandedExerciseId(exerciseId);
-    }
+    setExpandedExerciseId(expandedExerciseId === exerciseId ? null : exerciseId);
   };
 
   // Agrega un set a un ejercicio específico
@@ -90,9 +115,10 @@ export default function RoutineScreen() {
     updateRoutineInStorage(updatedRoutine);
   };
 
-  // Navega a StatsScreen (a implementar) pasando el ejercicio y la rutina
+  // Al presionar "Ver Stats", guarda el ejercicio seleccionado y muestra el modal
   const handleViewStats = (exercise) => {
-    navigation.navigate('StatsScreen', { exercise, routineId: currentRoutine.id });
+    setSelectedExercise(exercise);
+    setIsStatsVisible(true);
   };
 
   // Función para eliminar un ejercicio
@@ -159,14 +185,18 @@ export default function RoutineScreen() {
           {isExpanded && (
             <View style={styles.expandedContent}>
               <View style={styles.buttonRow}>
-                <CustomButton
-                  title="Agregar Set"
-                  onPress={() => setShowSetForm(!showSetForm)}
-                />
-                <CustomButton
-                  title="Ver Stats"
-                  onPress={() => handleViewStats(exercise)}
-                />
+                <View style={styles.buttonContainer}>
+                  <CustomButton
+                    title="Agregar Set"
+                    onPress={() => setShowSetForm(!showSetForm)}
+                  />
+                </View>
+                <View style={styles.buttonContainer}>
+                  <CustomButton
+                    title="Ver Stats"
+                    onPress={() => handleViewStats(exercise)}
+                  />
+                </View>
               </View>
               {showSetForm && (
                 <View style={styles.setForm}>
@@ -196,7 +226,6 @@ export default function RoutineScreen() {
                   ))}
                 </View>
               )}
-              {/* Botón verde "Listo" para contraer el ejercicio */}
               <CustomButton
                 title="Listo"
                 onPress={() => toggleExerciseExpansion(exercise.id)}
@@ -209,7 +238,7 @@ export default function RoutineScreen() {
     );
   };
 
-  // Si estamos en modo "add": formulario para ingresar el nombre de la nueva rutina
+  // Si estamos en modo "add": solo se muestra el formulario para crear la rutina
   if (mode === 'add') {
     return (
       <View style={styles.container}>
@@ -232,70 +261,65 @@ export default function RoutineScreen() {
       );
     }
 
-    // Componente Footer para la FlatList: incluye el botón de Agregar Ejercicio y Guardar Rutina
-    const renderFooter = useCallback(() => (
-      <View style={styles.footerContainer}>
+    return (
+      <View style={styles.container}>
+        <FlatList
+          keyboardShouldPersistTaps="always"
+          data={currentRoutine.exercises || []}
+          keyExtractor={(item, index) =>
+            item.id ? item.id.toString() : index.toString()
+          }
+          renderItem={({ item }) => <ExerciseItem exercise={item} />}
+          ListHeaderComponent={
+            <View style={styles.headerContainer}>
+              <Text style={styles.routineTitle}>Rutina: {currentRoutine?.name}</Text>
+            </View>
+          }
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No hay ejercicios agregados</Text>
+          }
+          contentContainerStyle={styles.flatListContent}
+        />
+
+        {/* Formulario de agregar ejercicio */}
         {addingExercise ? (
-          <View style={styles.newExerciseFormGlobal}>
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre del ejercicio"
-              value={newExerciseNameGlobal}
-              onChangeText={setNewExerciseNameGlobal}
-              blurOnSubmit={false} // Evita que se cierre el teclado al enviar
-              returnKeyType="done" // Define la tecla de acción como "done"
-              onSubmitEditing={() => {}}
-            />
-            <CustomButton
-              title="Guardar Ejercicio"
-              onPress={() => {
-                if (!newExerciseNameGlobal.trim()) {
-                  Alert.alert('Error', 'El nombre del ejercicio no puede estar vacío');
-                  return;
-                }
-                const newExercise = { id: Date.now(), name: newExerciseNameGlobal, sets: [] };
-                const updatedExercises = [...(currentRoutine.exercises || []), newExercise];
-                const updatedRoutine = { ...currentRoutine, exercises: updatedExercises };
-                setCurrentRoutine(updatedRoutine);
-                updateRoutineInStorage(updatedRoutine);
-                setNewExerciseNameGlobal('');
-                setAddingExercise(false);
-              }}
-            />
-            <CustomButton title="Cancelar" onPress={() => setAddingExercise(false)} />
-          </View>
+          <AddExerciseForm
+            newExerciseName={newExerciseNameGlobal}
+            onChangeText={setNewExerciseNameGlobal}
+            onSave={() => {
+              if (!newExerciseNameGlobal.trim()) {
+                Alert.alert('Error', 'El nombre del ejercicio no puede estar vacío');
+                return;
+              }
+              const newExercise = { id: Date.now(), name: newExerciseNameGlobal, sets: [] };
+              const updatedExercises = [...(currentRoutine.exercises || []), newExercise];
+              const updatedRoutine = { ...currentRoutine, exercises: updatedExercises };
+              setCurrentRoutine(updatedRoutine);
+              updateRoutineInStorage(updatedRoutine);
+              setNewExerciseNameGlobal('');
+              setAddingExercise(false);
+            }}
+            onCancel={() => setAddingExercise(false)}
+          />
         ) : (
           <CustomButton title="Agregar Ejercicio" onPress={() => setAddingExercise(true)} />
         )}
-        <CustomButton title="Guardar Rutina" onPress={handleSaveRoutine} />
-      </View>
-    ), [addingExercise, newExerciseNameGlobal, currentRoutine]);
 
-    return (
-      <FlatList
-        keyboardShouldPersistTaps="always" // Evita que se cierre el teclado
-        data={currentRoutine.exercises || []}
-        keyExtractor={(item, index) =>
-          item.id ? item.id.toString() : index.toString()
-        }
-        renderItem={({ item }) => <ExerciseItem exercise={item} />}
-        ListHeaderComponent={
-          <View style={styles.headerContainer}>
-            <Text style={styles.routineTitle}>Rutina: {currentRoutine?.name}</Text>
-          </View>
-        }
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No hay ejercicios agregados</Text>
-        }
-        ListFooterComponent={renderFooter}
-        contentContainerStyle={styles.flatListContent}
-      />
+        <CustomButton title="Guardar Rutina" onPress={handleSaveRoutine} />
+
+        <StatsScreen
+          isVisible={isStatsVisible}
+          onClose={() => setIsStatsVisible(false)}
+          exerciseName={selectedExercise ? selectedExercise.name : ''}
+        />
+      </View>
     );
   }
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     padding: 16,
     alignItems: 'center',
   },
@@ -310,17 +334,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  footerContainer: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
   newExerciseFormGlobal: {
     width: '100%',
     borderWidth: 1,
     borderColor: '#007AFF',
     borderRadius: 5,
     padding: 10,
-    marginBottom: 16,
+    marginVertical: 16,
   },
   emptyText: {
     fontSize: 16,
@@ -362,6 +382,12 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 10,
+  },
+  buttonContainer: {
+    flex: 1,
+    marginHorizontal: 5,
   },
   setForm: {
     marginTop: 10,
@@ -384,3 +410,4 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 });
+

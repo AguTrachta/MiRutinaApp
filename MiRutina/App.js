@@ -1,11 +1,10 @@
-// App.js
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-// Importa las pantallas
 import HomeScreen from './src/screens/HomeScreen';
 import RoutineScreen from './src/screens/RoutineScreen';
+import ExerciseScreen from './src/screens/ExerciseScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,12 +15,17 @@ export default function App() {
         <Stack.Screen 
           name="Home" 
           component={HomeScreen} 
-          options={{ title: 'Mi Rutina' }} 
+          options={{ title: 'Mis Rutinas' }} 
         />
         <Stack.Screen 
           name="RoutineScreen" 
           component={RoutineScreen} 
           options={{ title: 'Rutina' }} 
+        />
+        <Stack.Screen 
+          name="ExerciseScreen" 
+          component={ExerciseScreen} 
+          options={{ title: 'Ejercicio' }} 
         />
       </Stack.Navigator>
     </NavigationContainer>

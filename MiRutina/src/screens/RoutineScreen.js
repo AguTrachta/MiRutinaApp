@@ -1,3 +1,4 @@
+
 // src/screens/RoutineScreen.js
 import React, { useState } from 'react';
 import { 
@@ -102,7 +103,7 @@ export default function RoutineScreen() {
     setExpandedExerciseId(expandedExerciseId === exerciseId ? null : exerciseId);
   };
 
-  // Agrega un set a un ejercicio específico
+  // Agrega un set a un ejercicio específico (ahora incluye timestamp)
   const handleAddSetToExercise = (exerciseId, newSet) => {
     const updatedExercises = currentRoutine.exercises.map((ex) => {
       if (ex.id === exerciseId) {
@@ -161,7 +162,13 @@ export default function RoutineScreen() {
         Alert.alert('Error', 'Completa reps y peso');
         return;
       }
-      const newSet = { id: Date.now(), reps: setReps, weight: setWeight };
+      // Agregamos el timestamp para identificar la fecha del set
+      const newSet = { 
+        id: Date.now(), 
+        reps: setReps, 
+        weight: setWeight, 
+        timestamp: new Date().getTime() 
+      };
       handleAddSetToExercise(exercise.id, newSet);
       setSetReps('');
       setSetWeight('');
@@ -238,7 +245,7 @@ export default function RoutineScreen() {
     );
   };
 
-  // Si estamos en modo "add": solo se muestra el formulario para crear la rutina
+  // Si estamos en modo "add": se muestra solo el formulario para crear la rutina
   if (mode === 'add') {
     return (
       <View style={styles.container}>
@@ -367,6 +374,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 10, // Espacio extra entre el nombre y el botón "Eliminar"
   },
   exerciseName: {
     fontSize: 18,
@@ -375,6 +383,7 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: 'red',
     fontSize: 14,
+    marginLeft: 150, // Opcional: espacio extra antes del botón "Eliminar"
   },
   expandedContent: {
     marginTop: 10,
@@ -410,4 +419,3 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 });
-

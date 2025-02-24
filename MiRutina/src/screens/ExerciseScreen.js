@@ -16,7 +16,7 @@ export default function ExerciseScreen() {
 
   const updateSet = (index, field, value) => {
     const newSets = [...sets];
-    newSets[index][field] = value;
+    newSets[index][field] = value; 
     setSets(newSets);
   };
 

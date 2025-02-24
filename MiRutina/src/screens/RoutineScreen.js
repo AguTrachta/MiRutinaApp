@@ -1,14 +1,13 @@
-
 // src/screens/RoutineScreen.js
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  StyleSheet, 
-  Alert, 
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
   FlatList,
-  TouchableOpacity 
+  TouchableOpacity,
 } from 'react-native';
 import CustomButton from '../components/CustomButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -148,7 +147,7 @@ export default function RoutineScreen() {
       { cancelable: true }
     );
   };
-
+  
   // Componente para cada ejercicio
   const ExerciseItem = ({ exercise }) => {
     const [showSetForm, setShowSetForm] = useState(false);
@@ -163,11 +162,11 @@ export default function RoutineScreen() {
         return;
       }
       // Agregamos el timestamp para identificar la fecha del set
-      const newSet = { 
-        id: Date.now(), 
-        reps: setReps, 
-        weight: setWeight, 
-        timestamp: new Date().getTime() 
+      const newSet = {
+        id: Date.now(),
+        reps: setReps,
+        weight: setWeight,
+        timestamp: new Date().getTime(),
       };
       handleAddSetToExercise(exercise.id, newSet);
       setSetReps('');
@@ -176,76 +175,78 @@ export default function RoutineScreen() {
     };
 
     return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => {
-          if (!isExpanded) toggleExerciseExpansion(exercise.id);
-        }}
-      >
-        <View style={styles.exerciseItem}>
-          <View style={styles.exerciseHeader}>
-            <Text style={styles.exerciseName}>{exercise.name}</Text>
-            <TouchableOpacity onPress={() => handleDeleteExercise(exercise.id)}>
-              <Text style={styles.deleteButtonText}>Eliminar</Text>
-            </TouchableOpacity>
-          </View>
-          {isExpanded && (
-            <View style={styles.expandedContent}>
-              <View style={styles.buttonRow}>
-                <View style={styles.buttonContainer}>
-                  <CustomButton
-                    title="Agregar Set"
-                    onPress={() => setShowSetForm(!showSetForm)}
-                  />
-                </View>
-                <View style={styles.buttonContainer}>
-                  <CustomButton
-                    title="Ver Stats"
-                    onPress={() => handleViewStats(exercise)}
-                  />
-                </View>
-              </View>
-              {showSetForm && (
-                <View style={styles.setForm}>
-                  <TextInput
-                    style={styles.inputSet}
-                    placeholder="Reps"
-                    keyboardType="numeric"
-                    value={setReps}
-                    onChangeText={setSetReps}
-                  />
-                  <TextInput
-                    style={styles.inputSet}
-                    placeholder="Peso"
-                    keyboardType="numeric"
-                    value={setWeight}
-                    onChangeText={setSetWeight}
-                  />
-                  <CustomButton title="Guardar Set" onPress={handleSaveSet} />
-                </View>
-              )}
-              {exercise.sets && exercise.sets.length > 0 && (
-                <View style={styles.setsContainer}>
-                  {exercise.sets.map((set, index) => (
-                    <Text key={set.id} style={styles.setText}>
-                      Set {index + 1}: Reps: {set.reps}, Peso: {set.weight}
-                    </Text>
-                  ))}
-                </View>
-              )}
-              <CustomButton
-                title="Listo"
-                onPress={() => toggleExerciseExpansion(exercise.id)}
-                style={styles.greenButton}
-              />
-            </View>
-          )}
+      <View style={styles.exerciseItem}>
+        {/* Cabecera con nombre (para expandir) y botón Eliminar */}
+        <View style={styles.exerciseHeader}>
+          {/* Tocar el nombre para expandir/colapsar */}
+          <TouchableOpacity
+            style={styles.nameContainer}
+            onPress={() => toggleExerciseExpansion(exercise.id)}
+          >
+            <Text
+              style={styles.exerciseName}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {exercise.name}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Botón Eliminar, separado para que sea clickeable */}
+          <TouchableOpacity onPress={() => handleDeleteExercise(exercise.id)}>
+            <Text style={styles.deleteButtonText}>Eliminar</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+
+        {/* Contenido expandido */}
+        {isExpanded && (
+          <View style={styles.expandedContent}>
+            <View style={styles.buttonRow}>
+              <View style={styles.buttonContainer}>
+                <CustomButton
+                  title="Agregar Set"
+                  onPress={() => setShowSetForm(!showSetForm)}
+                />
+              </View>
+              <View style={styles.buttonContainer}>
+                <CustomButton
+                  title="Ver Stats"
+                  onPress={() => handleViewStats(exercise)}
+                />
+              </View>
+            </View>
+            {showSetForm && (
+              <View style={styles.setForm}>
+                <TextInput
+                  style={styles.inputSet}
+                  placeholder="Reps"
+                  keyboardType="numeric"
+                  value={setReps}
+                  onChangeText={setSetReps}
+                />
+                <TextInput
+                  style={styles.inputSet}
+                  placeholder="Peso"
+                  keyboardType="numeric"
+                  value={setWeight}
+                  onChangeText={setSetWeight}
+                />
+                <CustomButton title="Guardar Set" onPress={handleSaveSet} />
+              </View>
+            )}
+            
+            <CustomButton
+              title="Listo"
+              onPress={() => toggleExerciseExpansion(exercise.id)}
+              style={styles.greenButton}
+            />
+          </View>
+        )}
+      </View>
     );
   };
 
-  // Si estamos en modo "add": se muestra solo el formulario para crear la rutina
+  // Si estamos en modo "add": solo el formulario para crear la rutina
   if (mode === 'add') {
     return (
       <View style={styles.container}>
@@ -260,6 +261,7 @@ export default function RoutineScreen() {
       </View>
     );
   } else {
+    // Modo "view": mostrando la rutina con ejercicios
     if (!currentRoutine) {
       return (
         <View style={styles.container}>
@@ -279,7 +281,9 @@ export default function RoutineScreen() {
           renderItem={({ item }) => <ExerciseItem exercise={item} />}
           ListHeaderComponent={
             <View style={styles.headerContainer}>
-              <Text style={styles.routineTitle}>Rutina: {currentRoutine?.name}</Text>
+              <Text style={styles.routineTitle}>
+                Rutina: {currentRoutine?.name}
+              </Text>
             </View>
           }
           ListEmptyComponent={
@@ -298,9 +302,19 @@ export default function RoutineScreen() {
                 Alert.alert('Error', 'El nombre del ejercicio no puede estar vacío');
                 return;
               }
-              const newExercise = { id: Date.now(), name: newExerciseNameGlobal, sets: [] };
-              const updatedExercises = [...(currentRoutine.exercises || []), newExercise];
-              const updatedRoutine = { ...currentRoutine, exercises: updatedExercises };
+              const newExercise = {
+                id: Date.now(),
+                name: newExerciseNameGlobal,
+                sets: [],
+              };
+              const updatedExercises = [
+                ...(currentRoutine.exercises || []),
+                newExercise,
+              ];
+              const updatedRoutine = {
+                ...currentRoutine,
+                exercises: updatedExercises,
+              };
               setCurrentRoutine(updatedRoutine);
               updateRoutineInStorage(updatedRoutine);
               setNewExerciseNameGlobal('');
@@ -309,7 +323,10 @@ export default function RoutineScreen() {
             onCancel={() => setAddingExercise(false)}
           />
         ) : (
-          <CustomButton title="Agregar Ejercicio" onPress={() => setAddingExercise(true)} />
+          <CustomButton
+            title="Agregar Ejercicio"
+            onPress={() => setAddingExercise(true)}
+          />
         )}
 
         <CustomButton title="Guardar Rutina" onPress={handleSaveRoutine} />
@@ -318,6 +335,7 @@ export default function RoutineScreen() {
           isVisible={isStatsVisible}
           onClose={() => setIsStatsVisible(false)}
           exerciseName={selectedExercise ? selectedExercise.name : ''}
+          exerciseSets={selectedExercise ? selectedExercise.sets : []}
         />
       </View>
     );
@@ -328,7 +346,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    alignItems: 'center',
+    // alignItems: 'center', // Opcional. Si lo quitas, ocupará toda la pantalla horizontal
   },
   flatListContent: {
     padding: 16,
@@ -361,32 +379,40 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 12,
     borderRadius: 5,
+    alignSelf: 'center',
   },
+  // -- Ejercicio --
   exerciseItem: {
-    width: '100%',
+    width: '90%',          // <--- AQUI para que ocupe el 90% del contenedor
+    alignSelf: 'center',   // Centra horizontalmente
     borderWidth: 1,
     borderColor: '#007AFF',
     borderRadius: 5,
-    padding: 10,
     marginBottom: 10,
   },
   exerciseHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 10, // Espacio extra entre el nombre y el botón "Eliminar"
+    justifyContent: 'space-between',
+    height: 60,           // Altura fija de la cabecera
+    paddingHorizontal: 10,
+  },
+  nameContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
   exerciseName: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#000',
   },
   deleteButtonText: {
     color: 'red',
     fontSize: 14,
-    marginLeft: 150, // Opcional: espacio extra antes del botón "Eliminar"
+    marginLeft: 10,
   },
   expandedContent: {
-    marginTop: 10,
+    padding: 10,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -417,5 +443,10 @@ const styles = StyleSheet.create({
   greenButton: {
     backgroundColor: 'green',
     marginTop: 10,
+  },
+  label: {
+    fontSize: 18,
+    marginBottom: 8,
+    textAlign: 'center',
   },
 });

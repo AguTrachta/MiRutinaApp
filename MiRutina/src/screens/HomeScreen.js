@@ -15,7 +15,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import CustomButton from '../components/CustomButton';
-import * as MediaLibrary from 'expo-media-library';
+// Se ha removido: import * as MediaLibrary from 'expo-media-library';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -116,7 +116,7 @@ export default function HomeScreen() {
     </View>
   );
 
-  // Función para exportar datos
+  // Función para exportar datos (usa Sharing.shareAsync para que el usuario elija dónde guardar)
   const exportData = async () => {
     try {
       const userName = await AsyncStorage.getItem('userName');
@@ -126,57 +126,106 @@ export default function HomeScreen() {
         routines: routinesData ? JSON.parse(routinesData) : [],
       };
       const json = JSON.stringify(data, null, 2);
-      const fileUri = FileSystem.documentDirectory + 'myAppData.json';
+      const fileUri = FileSystem.documentDirectory + 'gym_data.json';
   
-      // Escribe el archivo en el directorio privado de la app
-      await FileSystem.writeAsStringAsync(fileUri, json);
+      await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
   
-      // Solicita permisos para acceder a la librería multimedia
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert("Permisos insuficientes", "Necesitamos permisos para guardar el archivo en Descargas.");
-        return;
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Exportar datos',
+        });
+      } else {
+        Alert.alert('Error', 'Compartir archivos no es compatible en este dispositivo.');
       }
   
-      // Crea un asset a partir del archivo
-      const asset = await MediaLibrary.createAssetAsync(fileUri);
-      // Crea (o agrega) el asset a un álbum público llamado "Download" (o "Descargas")
-      await MediaLibrary.createAlbumAsync("Download", asset, false);
-  
-      // También puedes usar Sharing.shareAsync para permitir que el usuario lo guarde manualmente
-      // await Sharing.shareAsync(fileUri);
-  
-      Alert.alert("Exportación exitosa", "El archivo se guardó en la carpeta de Descargas.");
+      Alert.alert("Exportación exitosa", "El archivo se ha guardado correctamente.");
     } catch (error) {
-      console.log('Error al exportar datos: ', error);
+      console.error('Error al exportar datos:', error);
       Alert.alert('Error', 'No se pudo exportar los datos.');
     }
   };
-
-  // Función para importar datos
+  
+  
   const importData = async () => {
     try {
+      console.log('📂 Iniciando importación de datos...');
+  
+      // Permitir seleccionar JSON
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
-      if (result.type === 'success') {
-        const json = await FileSystem.readAsStringAsync(result.uri);
-        const data = JSON.parse(json);
-        if (data.userName) {
-          await AsyncStorage.setItem('userName', data.userName);
-          setName(data.userName);
-        }
-        if (data.routines) {
-          await AsyncStorage.setItem('routines', JSON.stringify(data.routines));
-          setRoutines(data.routines);
-        }
-        Alert.alert('Importación exitosa', 'Los datos se han importado correctamente.');
+  
+      console.log('📄 Resultado del DocumentPicker:', result);
+  
+      // Verificar si el usuario realmente seleccionó un archivo
+      if (!result.assets || result.assets.length === 0) {
+        console.log('⛔ No se seleccionó ningún archivo.');
+        Alert.alert('Error', 'No se seleccionó ningún archivo.');
+        return;
       }
+  
+      // Obtener la URI del archivo seleccionado
+      const fileUri = result.assets[0].uri;
+      console.log('📄 Archivo seleccionado:', fileUri);
+  
+      // Leer el contenido del archivo
+      const json = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.UTF8 });
+      console.log('📥 Contenido del archivo leído:', json);
+  
+      let data;
+      try {
+        data = JSON.parse(json); // Intentar parsear el JSON
+      } catch (parseError) {
+        console.error('❌ Error al parsear JSON:', parseError);
+        Alert.alert('Error', 'El archivo no tiene el formato correcto.');
+        return;
+      }
+  
+      console.log('✅ Datos parseados correctamente:', data);
+  
+      // Validar estructura del JSON
+      if (!data || typeof data !== 'object' || !('userName' in data) || !('routines' in data)) {
+        console.error('❌ El archivo no tiene la estructura esperada.');
+        Alert.alert('Error', 'El archivo seleccionado no es válido.');
+        return;
+      }
+  
+      Alert.alert(
+        'Confirmación',
+        'Esto sobrescribirá los datos actuales. ¿Deseas continuar?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Importar',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                console.log('📝 Guardando datos en AsyncStorage...');
+  
+                await AsyncStorage.setItem('userName', data.userName || '');
+                await AsyncStorage.setItem('routines', JSON.stringify(data.routines || []));
+  
+                setName(data.userName || '');
+                setRoutines(data.routines || []);
+  
+                console.log('✅ Importación exitosa.');
+                Alert.alert('Importación exitosa', 'Los datos se han importado correctamente.');
+              } catch (storageError) {
+                console.error('❌ Error al guardar en AsyncStorage:', storageError);
+                Alert.alert('Error', 'Hubo un problema al guardar los datos importados.');
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
     } catch (error) {
-      console.log('Error al importar datos: ', error);
+      console.error('❌ Error en la importación:', error);
       Alert.alert('Error', 'No se pudo importar los datos.');
     }
   };
-
-  // Si no se ha guardado el nombre, mostramos la vista para ingresar el nombre
+  
+  
+  // Si no se ha guardado el nombre, mostramos la vista para ingresarlo
   if (showNameInput) {
     return (
       <View style={styles.container}>
@@ -313,7 +362,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  // Footer de la app: botones fijos
+  // Footer con botones fijos
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',

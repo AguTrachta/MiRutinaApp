@@ -1,21 +1,20 @@
-
 // src/screens/RoutineScreen.js
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  StyleSheet, 
-  Alert, 
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
   FlatList,
-  TouchableOpacity 
+  TouchableOpacity,
 } from 'react-native';
 import CustomButton from '../components/CustomButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import StatsScreen from './StatsScreen'; // Modal deslizable
 
-// Componente para el formulario de agregar ejercicio (se usa React.memo para evitar re-render innecesario)
+// Componente para el formulario de agregar ejercicio
 const AddExerciseForm = React.memo(({ 
   newExerciseName, 
   onChangeText, 
@@ -32,7 +31,6 @@ const AddExerciseForm = React.memo(({
         autoFocus={true}
         blurOnSubmit={false}
         returnKeyType="done"
-        onSubmitEditing={() => {}}
       />
       <CustomButton title="Guardar Ejercicio" onPress={onSave} />
       <CustomButton title="Cancelar" onPress={onCancel} />
@@ -49,12 +47,15 @@ export default function RoutineScreen() {
   const [routineName, setRoutineName] = useState(routine ? routine.name : '');
   // Para modo "view": se guarda la rutina completa (con ejercicios)
   const [currentRoutine, setCurrentRoutine] = useState(routine || null);
+
   // Controla cuál ejercicio está expandido (solo uno a la vez)
   const [expandedExerciseId, setExpandedExerciseId] = useState(null);
+
   // Estado para controlar la visibilidad del modal de Stats
   const [isStatsVisible, setIsStatsVisible] = useState(false);
-  // Estado para almacenar el ejercicio seleccionado (para mostrar su nombre en Stats)
+  // Estado para almacenar el ejercicio seleccionado (para mostrarlo en Stats)
   const [selectedExercise, setSelectedExercise] = useState(null);
+
   // Estados para el formulario de agregar un ejercicio nuevo (global)
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseNameGlobal, setNewExerciseNameGlobal] = useState('');
@@ -103,19 +104,6 @@ export default function RoutineScreen() {
     setExpandedExerciseId(expandedExerciseId === exerciseId ? null : exerciseId);
   };
 
-  // Agrega un set a un ejercicio específico (ahora incluye timestamp)
-  const handleAddSetToExercise = (exerciseId, newSet) => {
-    const updatedExercises = currentRoutine.exercises.map((ex) => {
-      if (ex.id === exerciseId) {
-        return { ...ex, sets: [...(ex.sets || []), newSet] };
-      }
-      return ex;
-    });
-    const updatedRoutine = { ...currentRoutine, exercises: updatedExercises };
-    setCurrentRoutine(updatedRoutine);
-    updateRoutineInStorage(updatedRoutine);
-  };
-
   // Al presionar "Ver Stats", guarda el ejercicio seleccionado y muestra el modal
   const handleViewStats = (exercise) => {
     setSelectedExercise(exercise);
@@ -151,102 +139,70 @@ export default function RoutineScreen() {
 
   // Componente para cada ejercicio
   const ExerciseItem = ({ exercise }) => {
-    const [showSetForm, setShowSetForm] = useState(false);
-    const [setReps, setSetReps] = useState('');
-    const [setWeight, setSetWeight] = useState('');
-
     const isExpanded = expandedExerciseId === exercise.id;
 
-    const handleSaveSet = () => {
-      if (!setReps.trim() || !setWeight.trim()) {
-        Alert.alert('Error', 'Completa reps y peso');
-        return;
-      }
-      // Agregamos el timestamp para identificar la fecha del set
-      const newSet = { 
-        id: Date.now(), 
-        reps: setReps, 
-        weight: setWeight, 
-        timestamp: new Date().getTime() 
-      };
-      handleAddSetToExercise(exercise.id, newSet);
-      setSetReps('');
-      setSetWeight('');
-      setShowSetForm(false);
+    // Navega a la pantalla de "AddSetScreen" con un modal transparente
+    const handleOpenAddSetScreen = () => {
+      navigation.navigate('AddSetScreen', {
+        routine: currentRoutine,
+        exerciseId: exercise.id,
+      });
     };
 
     return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => {
-          if (!isExpanded) toggleExerciseExpansion(exercise.id);
-        }}
-      >
-        <View style={styles.exerciseItem}>
-          <View style={styles.exerciseHeader}>
-            <Text style={styles.exerciseName}>{exercise.name}</Text>
-            <TouchableOpacity onPress={() => handleDeleteExercise(exercise.id)}>
-              <Text style={styles.deleteButtonText}>Eliminar</Text>
-            </TouchableOpacity>
-          </View>
-          {isExpanded && (
-            <View style={styles.expandedContent}>
-              <View style={styles.buttonRow}>
-                <View style={styles.buttonContainer}>
-                  <CustomButton
-                    title="Agregar Set"
-                    onPress={() => setShowSetForm(!showSetForm)}
-                  />
-                </View>
-                <View style={styles.buttonContainer}>
-                  <CustomButton
-                    title="Ver Stats"
-                    onPress={() => handleViewStats(exercise)}
-                  />
-                </View>
-              </View>
-              {showSetForm && (
-                <View style={styles.setForm}>
-                  <TextInput
-                    style={styles.inputSet}
-                    placeholder="Reps"
-                    keyboardType="numeric"
-                    value={setReps}
-                    onChangeText={setSetReps}
-                  />
-                  <TextInput
-                    style={styles.inputSet}
-                    placeholder="Peso"
-                    keyboardType="numeric"
-                    value={setWeight}
-                    onChangeText={setSetWeight}
-                  />
-                  <CustomButton title="Guardar Set" onPress={handleSaveSet} />
-                </View>
-              )}
-              {exercise.sets && exercise.sets.length > 0 && (
-                <View style={styles.setsContainer}>
-                  {exercise.sets.map((set, index) => (
-                    <Text key={set.id} style={styles.setText}>
-                      Set {index + 1}: Reps: {set.reps}, Peso: {set.weight}
-                    </Text>
-                  ))}
-                </View>
-              )}
-              <CustomButton
-                title="Listo"
-                onPress={() => toggleExerciseExpansion(exercise.id)}
-                style={styles.greenButton}
-              />
-            </View>
-          )}
+      <View style={styles.exerciseItem}>
+        {/* Cabecera con nombre (para expandir) y botón Eliminar */}
+        <View style={styles.exerciseHeader}>
+          <TouchableOpacity
+            style={styles.nameContainer}
+            onPress={() => toggleExerciseExpansion(exercise.id)}
+          >
+            <Text
+              style={styles.exerciseName}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {exercise.name}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => handleDeleteExercise(exercise.id)}>
+            <Text style={styles.deleteButtonText}>Eliminar</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+
+        {/* Contenido expandido */}
+        {isExpanded && (
+          <View style={styles.expandedContent}>
+            <View style={styles.buttonRow}>
+              <View style={styles.buttonContainer}>
+                <CustomButton
+                  title="Agregar Set"
+                  onPress={handleOpenAddSetScreen}
+                />
+              </View>
+              <View style={styles.buttonContainer}>
+                <CustomButton
+                  title="Ver Stats"
+                  onPress={() => handleViewStats(exercise)}
+                />
+              </View>
+            </View>
+
+            <CustomButton
+              title="Listo"
+              onPress={() => toggleExerciseExpansion(exercise.id)}
+              style={styles.greenButton}
+            />
+          </View>
+        )}
+      </View>
     );
   };
 
-  // Si estamos en modo "add": se muestra solo el formulario para crear la rutina
+  // Render principal
   if (mode === 'add') {
+    // Modo "add": solo el formulario para crear la rutina
     return (
       <View style={styles.container}>
         <Text style={styles.label}>Nueva Rutina</Text>
@@ -260,6 +216,7 @@ export default function RoutineScreen() {
       </View>
     );
   } else {
+    // Modo "view": mostrando la rutina con ejercicios
     if (!currentRoutine) {
       return (
         <View style={styles.container}>
@@ -269,71 +226,113 @@ export default function RoutineScreen() {
     }
 
     return (
-      <View style={styles.container}>
-        <FlatList
-          keyboardShouldPersistTaps="always"
-          data={currentRoutine.exercises || []}
-          keyExtractor={(item, index) =>
-            item.id ? item.id.toString() : index.toString()
-          }
-          renderItem={({ item }) => <ExerciseItem exercise={item} />}
-          ListHeaderComponent={
-            <View style={styles.headerContainer}>
-              <Text style={styles.routineTitle}>Rutina: {currentRoutine?.name}</Text>
-            </View>
-          }
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No hay ejercicios agregados</Text>
-          }
-          contentContainerStyle={styles.flatListContent}
-        />
-
-        {/* Formulario de agregar ejercicio */}
-        {addingExercise ? (
-          <AddExerciseForm
-            newExerciseName={newExerciseNameGlobal}
-            onChangeText={setNewExerciseNameGlobal}
-            onSave={() => {
-              if (!newExerciseNameGlobal.trim()) {
-                Alert.alert('Error', 'El nombre del ejercicio no puede estar vacío');
-                return;
-              }
-              const newExercise = { id: Date.now(), name: newExerciseNameGlobal, sets: [] };
-              const updatedExercises = [...(currentRoutine.exercises || []), newExercise];
-              const updatedRoutine = { ...currentRoutine, exercises: updatedExercises };
-              setCurrentRoutine(updatedRoutine);
-              updateRoutineInStorage(updatedRoutine);
-              setNewExerciseNameGlobal('');
-              setAddingExercise(false);
-            }}
-            onCancel={() => setAddingExercise(false)}
+      // Contenedor principal
+      <View style={styles.mainContainer}>
+        {/* Contenedor de la lista */}
+        <View style={styles.listContainer}>
+          <FlatList
+            keyboardShouldPersistTaps="always"
+            data={currentRoutine.exercises || []}
+            keyExtractor={(item, index) =>
+              item.id ? item.id.toString() : index.toString()
+            }
+            renderItem={({ item }) => <ExerciseItem exercise={item} />}
+            ListHeaderComponent={
+              <View style={styles.headerContainer}>
+                <Text style={styles.routineTitle}>
+                  Rutina: {currentRoutine?.name}
+                </Text>
+              </View>
+            }
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No hay ejercicios agregados</Text>
+            }
+            // Padding extra abajo para que la última tarjeta no quede cubierta por el footer
+            contentContainerStyle={{ paddingBottom: 120 }}
           />
-        ) : (
-          <CustomButton title="Agregar Ejercicio" onPress={() => setAddingExercise(true)} />
-        )}
+        </View>
 
-        <CustomButton title="Guardar Rutina" onPress={handleSaveRoutine} />
+        {/* Footer fijo al final */}
+        <View style={styles.footer}>
+          {addingExercise ? (
+            <AddExerciseForm
+              newExerciseName={newExerciseNameGlobal}
+              onChangeText={setNewExerciseNameGlobal}
+              onSave={() => {
+                if (!newExerciseNameGlobal.trim()) {
+                  Alert.alert('Error', 'El nombre del ejercicio no puede estar vacío');
+                  return;
+                }
+                const newExercise = {
+                  id: Date.now(),
+                  name: newExerciseNameGlobal,
+                  sets: [],
+                };
+                const updatedExercises = [
+                  ...(currentRoutine.exercises || []),
+                  newExercise,
+                ];
+                const updatedRoutine = {
+                  ...currentRoutine,
+                  exercises: updatedExercises,
+                };
+                setCurrentRoutine(updatedRoutine);
+                updateRoutineInStorage(updatedRoutine);
+                setNewExerciseNameGlobal('');
+                setAddingExercise(false);
+              }}
+              onCancel={() => setAddingExercise(false)}
+            />
+          ) : (
+            <>
+              <CustomButton
+                title="Agregar Ejercicio"
+                onPress={() => setAddingExercise(true)}
+              />
+              <CustomButton
+                title="Guardar Rutina"
+                onPress={handleSaveRoutine}
+              />
+            </>
+          )}
+        </View>
 
-<StatsScreen
-  isVisible={isStatsVisible}
-  onClose={() => setIsStatsVisible(false)}
-  exercise={selectedExercise}
-/>
-        
+        {/* Modal Stats (flotante) */}
+        <StatsScreen
+          isVisible={isStatsVisible}
+          onClose={() => setIsStatsVisible(false)}
+          exerciseName={selectedExercise ? selectedExercise.name : ''}
+          exerciseSets={selectedExercise ? selectedExercise.sets : []}
+        />
       </View>
     );
   }
 }
 
+// Estilos
 const styles = StyleSheet.create({
-  container: {
+  mainContainer: {
+    flex: 1,
+  },
+  listContainer: {
     flex: 1,
     padding: 16,
-    alignItems: 'center',
   },
-  flatListContent: {
-    padding: 16,
+  footer: {
+    // Fijamos el footer abajo de todo
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    // Opcional: color de fondo para diferenciar
+    backgroundColor: '#fff',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    // Si quieres disponer los botones uno al lado del otro
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
+  // Otros estilos
   headerContainer: {
     alignItems: 'center',
     marginBottom: 16,
@@ -348,7 +347,6 @@ const styles = StyleSheet.create({
     borderColor: '#007AFF',
     borderRadius: 5,
     padding: 10,
-    marginVertical: 16,
   },
   emptyText: {
     fontSize: 16,
@@ -362,33 +360,40 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 12,
     borderRadius: 5,
+    alignSelf: 'center',
   },
   exerciseItem: {
     width: '100%',
     borderWidth: 1,
     borderColor: '#007AFF',
     borderRadius: 5,
-    padding: 10,
     marginBottom: 10,
+    alignSelf: 'center',
+    paddingBottom: 5,
   },
   exerciseHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 10, // Espacio extra entre el nombre y el botón "Eliminar"
-
+    justifyContent: 'space-between',
+    height: 60,
+    paddingHorizontal: 10,
+  },
+  nameContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
   exerciseName: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginRight: 150,
+    color: '#000',
   },
   deleteButtonText: {
     color: 'red',
     fontSize: 14,
+    marginLeft: 10,
   },
   expandedContent: {
-    marginTop: 10,
+    padding: 10,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -400,24 +405,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
   },
-  setForm: {
-    marginTop: 10,
-  },
-  inputSet: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 6,
-    marginBottom: 8,
-    borderRadius: 5,
-  },
-  setsContainer: {
-    marginTop: 10,
-  },
-  setText: {
-    fontSize: 16,
-  },
   greenButton: {
     backgroundColor: 'green',
     marginTop: 10,
   },
+  label: {
+    fontSize: 18,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
 });
+

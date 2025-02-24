@@ -314,11 +314,12 @@ export default function RoutineScreen() {
 
         <CustomButton title="Guardar Rutina" onPress={handleSaveRoutine} />
 
-        <StatsScreen
-          isVisible={isStatsVisible}
-          onClose={() => setIsStatsVisible(false)}
-          exerciseName={selectedExercise ? selectedExercise.name : ''}
-        />
+<StatsScreen
+  isVisible={isStatsVisible}
+  onClose={() => setIsStatsVisible(false)}
+  exercise={selectedExercise}
+/>
+        
       </View>
     );
   }
@@ -375,15 +376,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 10, // Espacio extra entre el nombre y el botón "Eliminar"
+
   },
   exerciseName: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginRight: 150,
   },
   deleteButtonText: {
     color: 'red',
     fontSize: 14,
-    marginLeft: 150, // Opcional: espacio extra antes del botón "Eliminar"
   },
   expandedContent: {
     marginTop: 10,

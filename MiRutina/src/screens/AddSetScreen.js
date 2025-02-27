@@ -1,9 +1,8 @@
-// Ejemplo de AddSetScreen.js con estilo flotante
 import React, { useState } from 'react';
 import { View, Text, TextInput, Alert, StyleSheet } from 'react-native';
-import CustomButton from '../components/CustomButton';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import CustomButton from '../components/CustomButton';
 
 export default function AddSetScreen() {
   const [reps, setReps] = useState('');
@@ -12,7 +11,8 @@ export default function AddSetScreen() {
   const navigation = useNavigation();
   const route = useRoute();
 
-  const { routine, exerciseId } = route.params || {};
+  // Además de routine y exerciseId, ahora recibimos la función onSaveSet
+  const { routine, exerciseId, onSaveSet } = route.params || {};
 
   const handleSaveSet = async () => {
     if (!reps.trim() || !weight.trim()) {
@@ -25,7 +25,7 @@ export default function AddSetScreen() {
       weight,
       timestamp: new Date().getTime(),
     };
-    const updatedExercises = routine.exercises.map(ex => {
+    const updatedExercises = routine.exercises.map((ex) => {
       if (ex.id === exerciseId) {
         return { ...ex, sets: [...(ex.sets || []), newSet] };
       }
@@ -36,13 +36,20 @@ export default function AddSetScreen() {
     try {
       const stored = await AsyncStorage.getItem('routines');
       let routinesArray = stored ? JSON.parse(stored) : [];
-      routinesArray = routinesArray.map(r =>
+      routinesArray = routinesArray.map((r) =>
         r.id === updatedRoutine.id ? updatedRoutine : r
       );
       await AsyncStorage.setItem('routines', JSON.stringify(routinesArray));
+
+      // Llamamos al callback para refrescar la rutina en RoutineScreen
+      if (onSaveSet) {
+        onSaveSet(updatedRoutine.id);
+      }
     } catch (error) {
       console.log('Error al actualizar rutina:', error);
     }
+
+    // Volvemos a RoutineScreen
     navigation.goBack();
   };
 
@@ -80,7 +87,7 @@ const styles = StyleSheet.create({
   // Hace que el contenedor ocupe la pantalla con fondo semitransparente
   overlay: {
     flex: 1,
-    backgroundColor: 'transparent',  // Dejamos transparente porque ya lo oscurece el cardStyle
+    backgroundColor: 'transparent', // Dejamos transparente porque ya lo oscurece el cardStyle o modal
     justifyContent: 'center',
     alignItems: 'center',
   },

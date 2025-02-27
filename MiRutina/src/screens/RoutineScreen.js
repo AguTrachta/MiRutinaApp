@@ -8,11 +8,11 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import CustomButton from '../components/CustomButton';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import StatsScreen from './StatsScreen'; // Modal deslizable
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import CustomButton from '../components/CustomButton';
+import StatsScreen from './StatsScreen'; // Modal deslizable
 
 // Componente para el formulario de agregar ejercicio
 const AddExerciseForm = React.memo(
@@ -48,6 +48,7 @@ export default function RoutineScreen() {
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseNameGlobal, setNewExerciseNameGlobal] = useState('');
 
+  // Actualiza una rutina en AsyncStorage
   const updateRoutineInStorage = async (updatedRoutine) => {
     try {
       const stored = await AsyncStorage.getItem('routines');
@@ -61,6 +62,7 @@ export default function RoutineScreen() {
     }
   };
 
+  // Guarda una nueva rutina o actualiza la existente
   const handleSaveRoutine = async () => {
     if (!routineName.trim()) {
       Alert.alert('Error', 'El nombre de la rutina no puede estar vacío');
@@ -73,7 +75,10 @@ export default function RoutineScreen() {
         const routinesArray = stored ? JSON.parse(stored) : [];
         routinesArray.push(newRoutine);
         await AsyncStorage.setItem('routines', JSON.stringify(routinesArray));
-        navigation.replace('RoutineScreen', { mode: 'view', routine: newRoutine });
+        navigation.replace('RoutineScreen', {
+          mode: 'view',
+          routine: newRoutine,
+        });
       } catch (error) {
         console.log('Error al guardar rutina:', error);
       }
@@ -83,15 +88,41 @@ export default function RoutineScreen() {
     }
   };
 
+  // Se invoca cuando AddSetScreen ha guardado un set nuevo, para refrescar la rutina en el estado
+  const handleRefreshRoutine = async (routineId) => {
+    try {
+      const stored = await AsyncStorage.getItem('routines');
+      const routinesArray = stored ? JSON.parse(stored) : [];
+      const updatedRoutine = routinesArray.find((r) => r.id === routineId);
+      if (updatedRoutine) {
+        setCurrentRoutine(updatedRoutine);
+      }
+    } catch (error) {
+      console.log('Error al refrescar rutina:', error);
+    }
+  };
+
+  // Navega a la pantalla de agregar set, pasando el callback
+  const handleOpenAddSetScreen = (exerciseId) => {
+    navigation.navigate('AddSetScreen', {
+      routine: currentRoutine,
+      exerciseId,
+      onSaveSet: handleRefreshRoutine, // Callback que llamará AddSetScreen
+    });
+  };
+
+  // Expande o colapsa un ejercicio
   const toggleExerciseExpansion = (exerciseId) => {
     setExpandedExerciseId(expandedExerciseId === exerciseId ? null : exerciseId);
   };
 
+  // Abre el modal de stats
   const handleViewStats = (exercise) => {
     setSelectedExercise(exercise);
     setIsStatsVisible(true);
   };
 
+  // Eliminar un ejercicio
   const handleDeleteExercise = (exerciseId) => {
     Alert.alert(
       'Confirmar',
@@ -105,7 +136,10 @@ export default function RoutineScreen() {
             const updatedExercises = currentRoutine.exercises.filter(
               (ex) => ex.id !== exerciseId
             );
-            const updatedRoutine = { ...currentRoutine, exercises: updatedExercises };
+            const updatedRoutine = {
+              ...currentRoutine,
+              exercises: updatedExercises,
+            };
             setCurrentRoutine(updatedRoutine);
             updateRoutineInStorage(updatedRoutine);
             if (expandedExerciseId === exerciseId) {
@@ -118,15 +152,9 @@ export default function RoutineScreen() {
     );
   };
 
+  // Render de cada ejercicio
   const ExerciseItem = ({ exercise }) => {
     const isExpanded = expandedExerciseId === exercise.id;
-
-    const handleOpenAddSetScreen = () => {
-      navigation.navigate('AddSetScreen', {
-        routine: currentRoutine,
-        exerciseId: exercise.id,
-      });
-    };
 
     return (
       <View style={styles.exerciseItem}>
@@ -135,11 +163,7 @@ export default function RoutineScreen() {
             style={styles.nameContainer}
             onPress={() => toggleExerciseExpansion(exercise.id)}
           >
-            <Text
-              style={styles.exerciseName}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
+            <Text style={styles.exerciseName} numberOfLines={1} ellipsizeMode="tail">
               {exercise.name}
             </Text>
           </TouchableOpacity>
@@ -159,14 +183,11 @@ export default function RoutineScreen() {
               <View style={styles.buttonContainer}>
                 <CustomButton
                   title="Agregar Set"
-                  onPress={handleOpenAddSetScreen}
+                  onPress={() => handleOpenAddSetScreen(exercise.id)}
                 />
               </View>
               <View style={styles.buttonContainer}>
-                <CustomButton
-                  title="Ver Stats"
-                  onPress={() => handleViewStats(exercise)}
-                />
+                <CustomButton title="Ver Stats" onPress={() => handleViewStats(exercise)} />
               </View>
             </View>
 
@@ -181,6 +202,7 @@ export default function RoutineScreen() {
     );
   };
 
+  // Si estamos en modo "añadir rutina"
   if (mode === 'add') {
     return (
       <View style={styles.container}>
@@ -194,92 +216,91 @@ export default function RoutineScreen() {
         <CustomButton title="Guardar Rutina" onPress={handleSaveRoutine} />
       </View>
     );
-  } else {
-    if (!currentRoutine) {
-      return (
-        <View style={styles.container}>
-          <Text style={styles.label}>Cargando rutina...</Text>
-        </View>
-      );
-    }
+  }
 
+  // Si estamos en modo "ver/editar rutina" y aún no se cargó
+  if (!currentRoutine) {
     return (
-      <View style={styles.mainContainer}>
-        <View style={styles.listContainer}>
-          <FlatList
-            keyboardShouldPersistTaps="always"
-            data={currentRoutine.exercises || []}
-            keyExtractor={(item, index) =>
-              item.id ? item.id.toString() : index.toString()
-            }
-            renderItem={({ item }) => <ExerciseItem exercise={item} />}
-            ListHeaderComponent={
-              <View style={styles.headerContainer}>
-                <Text style={styles.routineTitle}>
-                  Rutina: {currentRoutine?.name}
-                </Text>
-              </View>
-            }
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No hay ejercicios agregados</Text>
-            }
-            contentContainerStyle={{ paddingBottom: 120 }}
-          />
-        </View>
-
-        <View style={styles.footer}>
-          {addingExercise ? (
-            <AddExerciseForm
-              newExerciseName={newExerciseNameGlobal}
-              onChangeText={setNewExerciseNameGlobal}
-              onSave={() => {
-                if (!newExerciseNameGlobal.trim()) {
-                  Alert.alert('Error', 'El nombre del ejercicio no puede estar vacío');
-                  return;
-                }
-                const newExercise = {
-                  id: Date.now(),
-                  name: newExerciseNameGlobal,
-                  sets: [],
-                };
-                const updatedExercises = [
-                  ...(currentRoutine.exercises || []),
-                  newExercise,
-                ];
-                const updatedRoutine = {
-                  ...currentRoutine,
-                  exercises: updatedExercises,
-                };
-                setCurrentRoutine(updatedRoutine);
-                updateRoutineInStorage(updatedRoutine);
-                setNewExerciseNameGlobal('');
-                setAddingExercise(false);
-              }}
-              onCancel={() => setAddingExercise(false)}
-            />
-          ) : (
-            <>
-              <CustomButton
-                title="Agregar Ejercicio"
-                onPress={() => setAddingExercise(true)}
-              />
-              <CustomButton
-                title="Guardar Rutina"
-                onPress={handleSaveRoutine}
-              />
-            </>
-          )}
-        </View>
-
-        <StatsScreen
-          isVisible={isStatsVisible}
-          onClose={() => setIsStatsVisible(false)}
-          exerciseName={selectedExercise ? selectedExercise.name : ''}
-          exerciseSets={selectedExercise ? selectedExercise.sets : []}
-        />
+      <View style={styles.container}>
+        <Text style={styles.label}>Cargando rutina...</Text>
       </View>
     );
   }
+
+  // Modo "ver/editar" rutina
+  return (
+    <View style={styles.mainContainer}>
+      <View style={styles.listContainer}>
+        <FlatList
+          keyboardShouldPersistTaps="always"
+          data={currentRoutine.exercises || []}
+          keyExtractor={(item, index) =>
+            item.id ? item.id.toString() : index.toString()
+          }
+          renderItem={({ item }) => <ExerciseItem exercise={item} />}
+          ListHeaderComponent={
+            <View style={styles.headerContainer}>
+              <Text style={styles.routineTitle}>
+                Rutina: {currentRoutine?.name}
+              </Text>
+            </View>
+          }
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No hay ejercicios agregados</Text>
+          }
+          contentContainerStyle={{ paddingBottom: 120 }}
+        />
+      </View>
+
+      <View style={styles.footer}>
+        {addingExercise ? (
+          <AddExerciseForm
+            newExerciseName={newExerciseNameGlobal}
+            onChangeText={setNewExerciseNameGlobal}
+            onSave={() => {
+              if (!newExerciseNameGlobal.trim()) {
+                Alert.alert('Error', 'El nombre del ejercicio no puede estar vacío');
+                return;
+              }
+              const newExercise = {
+                id: Date.now(),
+                name: newExerciseNameGlobal,
+                sets: [],
+              };
+              const updatedExercises = [
+                ...(currentRoutine.exercises || []),
+                newExercise,
+              ];
+              const updatedRoutine = {
+                ...currentRoutine,
+                exercises: updatedExercises,
+              };
+              setCurrentRoutine(updatedRoutine);
+              updateRoutineInStorage(updatedRoutine);
+              setNewExerciseNameGlobal('');
+              setAddingExercise(false);
+            }}
+            onCancel={() => setAddingExercise(false)}
+          />
+        ) : (
+          <>
+            <CustomButton
+              title="Agregar Ejercicio"
+              onPress={() => setAddingExercise(true)}
+            />
+            <CustomButton title="Guardar Rutina" onPress={handleSaveRoutine} />
+          </>
+        )}
+      </View>
+
+      <StatsScreen
+        isVisible={isStatsVisible}
+        onClose={() => setIsStatsVisible(false)}
+        exerciseName={selectedExercise ? selectedExercise.name : ''}
+        exerciseSets={selectedExercise ? selectedExercise.sets : []}
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -351,6 +372,11 @@ const styles = StyleSheet.create({
   },
   buttonContainer: { flex: 1, marginHorizontal: 5 },
   greenButton: { backgroundColor: 'green', marginTop: 10 },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   label: { fontSize: 18, marginBottom: 8, textAlign: 'center' },
 });
 

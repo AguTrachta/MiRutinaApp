@@ -1,4 +1,3 @@
-// src/screens/HomeScreen.js
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -15,7 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import CustomButton from '../components/CustomButton';
-// Se ha removido: import * as MediaLibrary from 'expo-media-library';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -110,13 +109,13 @@ export default function HomeScreen() {
       <TouchableOpacity
         style={styles.deleteButton}
         onPress={() => handleDeleteRoutine(item.id)}
+        accessibilityLabel="Eliminar rutina"
       >
-        <Text style={styles.deleteButtonText}>Eliminar</Text>
+        <Icon name="delete" size={24} color="#fff" />
       </TouchableOpacity>
     </View>
   );
 
-  // Función para exportar datos (usa Sharing.shareAsync para que el usuario elija dónde guardar)
   const exportData = async () => {
     try {
       const userName = await AsyncStorage.getItem('userName');
@@ -145,35 +144,30 @@ export default function HomeScreen() {
       Alert.alert('Error', 'No se pudo exportar los datos.');
     }
   };
-  
-  
+
   const importData = async () => {
     try {
       console.log('📂 Iniciando importación de datos...');
   
-      // Permitir seleccionar JSON
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
   
       console.log('📄 Resultado del DocumentPicker:', result);
   
-      // Verificar si el usuario realmente seleccionó un archivo
       if (!result.assets || result.assets.length === 0) {
         console.log('⛔ No se seleccionó ningún archivo.');
         Alert.alert('Error', 'No se seleccionó ningún archivo.');
         return;
       }
   
-      // Obtener la URI del archivo seleccionado
       const fileUri = result.assets[0].uri;
       console.log('📄 Archivo seleccionado:', fileUri);
   
-      // Leer el contenido del archivo
       const json = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.UTF8 });
       console.log('📥 Contenido del archivo leído:', json);
   
       let data;
       try {
-        data = JSON.parse(json); // Intentar parsear el JSON
+        data = JSON.parse(json);
       } catch (parseError) {
         console.error('❌ Error al parsear JSON:', parseError);
         Alert.alert('Error', 'El archivo no tiene el formato correcto.');
@@ -182,7 +176,6 @@ export default function HomeScreen() {
   
       console.log('✅ Datos parseados correctamente:', data);
   
-      // Validar estructura del JSON
       if (!data || typeof data !== 'object' || !('userName' in data) || !('routines' in data)) {
         console.error('❌ El archivo no tiene la estructura esperada.');
         Alert.alert('Error', 'El archivo seleccionado no es válido.');
@@ -223,9 +216,7 @@ export default function HomeScreen() {
       Alert.alert('Error', 'No se pudo importar los datos.');
     }
   };
-  
-  
-  // Si no se ha guardado el nombre, mostramos la vista para ingresarlo
+
   if (showNameInput) {
     return (
       <View style={styles.container}>
@@ -243,16 +234,13 @@ export default function HomeScreen() {
     );
   }
 
-  // Vista principal
   return (
     <View style={styles.container}>
-      {/* Encabezado */}
       <View style={styles.header}>
         <Text style={styles.greeting}>¡Hola, {name}!</Text>
         <Text style={styles.subtitle}>¿Qué vas a entrenar hoy?</Text>
       </View>
 
-      {/* Lista de rutinas */}
       <View style={styles.listContainer}>
         {routines.length === 0 ? (
           <Text style={styles.noRoutines}>No hay rutinas creadas</Text>
@@ -268,7 +256,6 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Botones de respaldo (exportar/importar) */}
       <View style={styles.backupContainer}>
         <TouchableOpacity style={styles.backupButton} onPress={exportData}>
           <Text style={styles.backupButtonText}>Exportar Datos</Text>
@@ -278,7 +265,6 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Footer con botones fijos: Cronómetro a la izquierda, Agregar Rutina a la derecha */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={styles.timerButton}
@@ -299,12 +285,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Contenedor general
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  // Encabezado
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
   header: {
     alignItems: 'center',
     marginTop: 40,
@@ -320,7 +301,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#666',
   },
-  // Lista de rutinas
   listContainer: {
     flex: 1,
     paddingHorizontal: 16,
@@ -347,22 +327,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
-  routineText: {
-    fontSize: 16,
-    color: '#333',
-  },
+  routineText: { fontSize: 16, color: '#333' },
   deleteButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    backgroundColor: 'red',
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  backupContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderColor: '#E2E2E2',
+  },
+  backupButton: {
+    backgroundColor: '#6c757d',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 5,
   },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  // Footer con botones fijos
+  backupButtonText: { color: '#fff', fontSize: 14 },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -393,35 +382,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  // Botones de respaldo: Exportar/Importar
-  backupContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderColor: '#E2E2E2',
-  },
-  backupButton: {
-    backgroundColor: '#6c757d',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 5,
-  },
-  backupButtonText: {
-    color: '#fff',
-    fontSize: 14,
-  },
-  // Vista cuando no se ha guardado nombre
   inputContainer: {
     marginTop: 40,
     alignItems: 'center',
   },
-  label: {
-    fontSize: 18,
-    marginBottom: 8,
-    color: '#333',
-  },
+  label: { fontSize: 18, marginBottom: 8, color: '#333' },
   input: {
     width: '80%',
     borderWidth: 1,
@@ -431,3 +396,4 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
 });
+

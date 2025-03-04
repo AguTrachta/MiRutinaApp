@@ -13,18 +13,28 @@ export default function StatsScreen({
   exerciseName,
   exerciseSets = [],
 }) {
-  // 1) Mejor set histórico (mayor peso)
+  // 1) Mejor set histórico (mayor peso, y si empatan en peso, mayor repeticiones)
   const bestSet = useMemo(() => {
     if (!exerciseSets.length) return null;
-    let maxWeightSet = exerciseSets[0];
-    for (const set of exerciseSets) {
+    
+    return exerciseSets.reduce((currentBest, set) => {
       const currentWeight = parseFloat(set.weight) || 0;
-      const maxWeight = parseFloat(maxWeightSet.weight) || 0;
-      if (currentWeight > maxWeight) {
-        maxWeightSet = set;
+      const currentReps   = parseFloat(set.reps)   || 0;
+
+      const bestWeight = parseFloat(currentBest.weight) || 0;
+      const bestReps   = parseFloat(currentBest.reps)   || 0;
+
+      // 1) Si el peso actual es mayor, actualizamos bestSet.
+      if (currentWeight > bestWeight) {
+        return set;
+      } 
+      // 2) Si el peso es igual, pero las reps son mayores, también actualizamos.
+      else if (currentWeight === bestWeight && currentReps > bestReps) {
+        return set;
       }
-    }
-    return maxWeightSet;
+      // 3) En cualquier otro caso, mantenemos el "currentBest".
+      return currentBest;
+    }, exerciseSets[0]);
   }, [exerciseSets]);
 
   // 2) Comparación de volumen semana actual vs. semana pasada
@@ -79,12 +89,13 @@ export default function StatsScreen({
     totalReps: lastWeekTotalReps,
   } = getTotals(lastWeekSets);
 
-  // 3) Últimos 3 sets
+  // 3) Últimos 3 sets (ordenados del más reciente al más antiguo)
   const last3Sets = useMemo(() => {
     const sorted = [...exerciseSets].sort((a, b) => b.timestamp - a.timestamp);
     return sorted.slice(0, 3);
   }, [exerciseSets]);
 
+  // Mensaje según la diferencia de volumen (esta parte queda igual)
   let differenceText = '';
   if (difference > 0) {
     differenceText = `¡Genial! Subiste un ${difference.toFixed(2)}% respecto a la semana pasada.`;
@@ -103,10 +114,12 @@ export default function StatsScreen({
       propagateSwipe
     >
       <View style={styles.content}>
+        {/* Indicador para arrastrar el modal hacia abajo */}
         <View style={styles.handle} />
 
         <Text style={styles.title}>Stats for {exerciseName}</Text>
 
+        {/* Tarjeta: Mejor set histórico */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Mejor Set Histórico</Text>
           {bestSet ? (
@@ -118,6 +131,7 @@ export default function StatsScreen({
           )}
         </View>
 
+        {/* Tarjeta: Comparación Semanal */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Comparación Semanal</Text>
           <Text style={styles.cardText}>
@@ -131,6 +145,7 @@ export default function StatsScreen({
           <Text style={[styles.cardText, { marginTop: 5 }]}>{differenceText}</Text>
         </View>
 
+        {/* Tarjeta: Últimos 3 sets */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Últimos 3 sets</Text>
           {last3Sets.length > 0 ? (

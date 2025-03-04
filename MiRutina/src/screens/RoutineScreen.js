@@ -1,3 +1,5 @@
+// src/screens/RoutineScreen.js
+
 import React, { useState } from 'react';
 import {
   View,
@@ -11,10 +13,11 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+
 import CustomButton from '../components/CustomButton';
 import StatsScreen from './StatsScreen'; // Modal deslizable
 
-// Componente para el formulario de agregar ejercicio
+// Formulario para agregar ejercicio
 const AddExerciseForm = React.memo(
   ({ newExerciseName, onChangeText, onSave, onCancel }) => {
     return (
@@ -48,7 +51,7 @@ export default function RoutineScreen() {
   const [addingExercise, setAddingExercise] = useState(false);
   const [newExerciseNameGlobal, setNewExerciseNameGlobal] = useState('');
 
-  // Actualiza una rutina en AsyncStorage
+  // Actualiza la rutina en AsyncStorage
   const updateRoutineInStorage = async (updatedRoutine) => {
     try {
       const stored = await AsyncStorage.getItem('routines');
@@ -88,7 +91,7 @@ export default function RoutineScreen() {
     }
   };
 
-  // Se invoca cuando AddSetScreen ha guardado un set nuevo, para refrescar la rutina en el estado
+  // Se invoca cuando AddSetScreen o EditNameScreen han guardado cambios
   const handleRefreshRoutine = async (routineId) => {
     try {
       const stored = await AsyncStorage.getItem('routines');
@@ -102,27 +105,38 @@ export default function RoutineScreen() {
     }
   };
 
-  // Navega a la pantalla de agregar set, pasando el callback
+  // Navegar a AddSetScreen
   const handleOpenAddSetScreen = (exerciseId) => {
     navigation.navigate('AddSetScreen', {
       routine: currentRoutine,
       exerciseId,
-      onSaveSet: handleRefreshRoutine, // Callback que llamará AddSetScreen
+      onSaveSet: handleRefreshRoutine,
     });
   };
 
-  // Expande o colapsa un ejercicio
+  // Navegar a EditNameScreen para editar ejercicio
+  const handleOpenEditExerciseScreen = (exercise) => {
+    navigation.navigate('EditNameScreen', {
+      type: 'exercise',
+      routineId: currentRoutine.id,
+      exerciseId: exercise.id,
+      existingName: exercise.name,
+      onSaveName: handleRefreshRoutine,
+    });
+  };
+
+  // Expandir o colapsar ejercicio
   const toggleExerciseExpansion = (exerciseId) => {
     setExpandedExerciseId(expandedExerciseId === exerciseId ? null : exerciseId);
   };
 
-  // Abre el modal de stats
+  // Ver Stats
   const handleViewStats = (exercise) => {
     setSelectedExercise(exercise);
     setIsStatsVisible(true);
   };
 
-  // Eliminar un ejercicio
+  // Eliminar ejercicio
   const handleDeleteExercise = (exerciseId) => {
     Alert.alert(
       'Confirmar',
@@ -158,6 +172,7 @@ export default function RoutineScreen() {
 
     return (
       <View style={styles.exerciseItem}>
+        {/* Encabezado con el nombre y los iconos de editar/eliminar */}
         <View style={styles.exerciseHeader}>
           <TouchableOpacity
             style={styles.nameContainer}
@@ -168,6 +183,16 @@ export default function RoutineScreen() {
             </Text>
           </TouchableOpacity>
 
+          {/* Botón editar (lapicito azul) */}
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => handleOpenEditExerciseScreen(exercise)}
+            accessibilityLabel="Editar ejercicio"
+          >
+            <Icon name="edit" size={24} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Botón eliminar (basurero rojo) */}
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => handleDeleteExercise(exercise.id)}
@@ -177,6 +202,7 @@ export default function RoutineScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Contenido expandido (botones Agregar Set, Ver Stats, etc.) */}
         {isExpanded && (
           <View style={styles.expandedContent}>
             <View style={styles.buttonRow}>
@@ -187,7 +213,10 @@ export default function RoutineScreen() {
                 />
               </View>
               <View style={styles.buttonContainer}>
-                <CustomButton title="Ver Stats" onPress={() => handleViewStats(exercise)} />
+                <CustomButton
+                  title="Ver Stats"
+                  onPress={() => handleViewStats(exercise)}
+                />
               </View>
             </View>
 
@@ -202,7 +231,7 @@ export default function RoutineScreen() {
     );
   };
 
-  // Si estamos en modo "añadir rutina"
+  // Modo "agregar" rutina
   if (mode === 'add') {
     return (
       <View style={styles.container}>
@@ -218,7 +247,7 @@ export default function RoutineScreen() {
     );
   }
 
-  // Si estamos en modo "ver/editar rutina" y aún no se cargó
+  // Si aún no cargó la rutina
   if (!currentRoutine) {
     return (
       <View style={styles.container}>
@@ -227,7 +256,7 @@ export default function RoutineScreen() {
     );
   }
 
-  // Modo "ver/editar" rutina
+  // Modo "ver/editar"
   return (
     <View style={styles.mainContainer}>
       <View style={styles.listContainer}>
@@ -288,11 +317,15 @@ export default function RoutineScreen() {
               title="Agregar Ejercicio"
               onPress={() => setAddingExercise(true)}
             />
-            <CustomButton title="Guardar Rutina" onPress={handleSaveRoutine} />
+            <CustomButton
+              title="Guardar Rutina"
+              onPress={handleSaveRoutine}
+            />
           </>
         )}
       </View>
 
+      {/* Modal Stats */}
       <StatsScreen
         isVisible={isStatsVisible}
         onClose={() => setIsStatsVisible(false)}
@@ -354,6 +387,17 @@ const styles = StyleSheet.create({
   },
   nameContainer: { flex: 1, justifyContent: 'center' },
   exerciseName: { fontSize: 18, fontWeight: 'bold', color: '#000' },
+  // Botón editar (lapicito azul)
+  editButton: {
+    backgroundColor: 'blue',
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  // Botón eliminar (basurero rojo)
   deleteButton: {
     backgroundColor: 'red',
     width: 40,
@@ -361,7 +405,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
   },
   expandedContent: { padding: 10 },
   buttonRow: {

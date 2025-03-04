@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+// src/screens/HomeScreen.js
+import React, { useEffect, useState, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -18,9 +19,17 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+
   const [name, setName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
   const [routines, setRoutines] = useState([]);
+
+  // Eliminamos cualquier botón de configuración del header
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => null,
+    });
+  }, [navigation]);
 
   useEffect(() => {
     checkStoredName();
@@ -32,6 +41,7 @@ export default function HomeScreen() {
     }, [])
   );
 
+  // Verifica si existe un nombre guardado en AsyncStorage
   const checkStoredName = async () => {
     try {
       const storedName = await AsyncStorage.getItem('userName');
@@ -46,6 +56,7 @@ export default function HomeScreen() {
     }
   };
 
+  // Guarda el nombre del usuario
   const handleSaveName = async () => {
     try {
       await AsyncStorage.setItem('userName', name);
@@ -55,6 +66,7 @@ export default function HomeScreen() {
     }
   };
 
+  // Carga las rutinas guardadas
   const loadRoutines = async () => {
     try {
       const stored = await AsyncStorage.getItem('routines');
@@ -66,6 +78,19 @@ export default function HomeScreen() {
     }
   };
 
+  // Refresca las rutinas
+  const handleRefreshRoutines = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('routines');
+      if (stored) {
+        setRoutines(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.log('Error al refrescar rutinas:', error);
+    }
+  };
+
+  // Elimina una rutina
   const handleDeleteRoutine = (routineId) => {
     Alert.alert(
       'Confirmar eliminación',
@@ -90,6 +115,7 @@ export default function HomeScreen() {
     );
   };
 
+  // Renderiza cada rutina de la lista
   const renderRoutineItem = ({ item }) => (
     <View style={styles.routineItem}>
       <TouchableOpacity
@@ -98,13 +124,22 @@ export default function HomeScreen() {
           navigation.navigate('RoutineScreen', { mode: 'view', routine: item })
         }
       >
-        <Text
-          style={styles.routineText}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
+        <Text style={styles.routineText} numberOfLines={1} ellipsizeMode="tail">
           {item.name}
         </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.editButton}
+        onPress={() => {
+          navigation.navigate('EditNameScreen', {
+            type: 'routine',
+            routineId: item.id,
+            existingName: item.name,
+            onSaveName: handleRefreshRoutines,
+          });
+        }}
+      >
+        <Icon name="edit" size={24} color="#fff" />
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.deleteButton}
@@ -116,6 +151,7 @@ export default function HomeScreen() {
     </View>
   );
 
+  // Exportar datos (usuario + rutinas)
   const exportData = async () => {
     try {
       const userName = await AsyncStorage.getItem('userName');
@@ -126,9 +162,9 @@ export default function HomeScreen() {
       };
       const json = JSON.stringify(data, null, 2);
       const fileUri = FileSystem.documentDirectory + 'gym_data.json';
-  
+
       await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
-  
+
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'application/json',
@@ -137,34 +173,33 @@ export default function HomeScreen() {
       } else {
         Alert.alert('Error', 'Compartir archivos no es compatible en este dispositivo.');
       }
-  
-      Alert.alert("Exportación exitosa", "El archivo se ha guardado correctamente.");
+
+      Alert.alert('Exportación exitosa', 'El archivo se ha guardado correctamente.');
     } catch (error) {
       console.error('Error al exportar datos:', error);
       Alert.alert('Error', 'No se pudo exportar los datos.');
     }
   };
 
+  // Importar datos
   const importData = async () => {
     try {
       console.log('📂 Iniciando importación de datos...');
-  
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
-  
       console.log('📄 Resultado del DocumentPicker:', result);
-  
+
       if (!result.assets || result.assets.length === 0) {
         console.log('⛔ No se seleccionó ningún archivo.');
         Alert.alert('Error', 'No se seleccionó ningún archivo.');
         return;
       }
-  
+
       const fileUri = result.assets[0].uri;
       console.log('📄 Archivo seleccionado:', fileUri);
-  
+
       const json = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.UTF8 });
       console.log('📥 Contenido del archivo leído:', json);
-  
+
       let data;
       try {
         data = JSON.parse(json);
@@ -173,15 +208,15 @@ export default function HomeScreen() {
         Alert.alert('Error', 'El archivo no tiene el formato correcto.');
         return;
       }
-  
+
       console.log('✅ Datos parseados correctamente:', data);
-  
+
       if (!data || typeof data !== 'object' || !('userName' in data) || !('routines' in data)) {
         console.error('❌ El archivo no tiene la estructura esperada.');
         Alert.alert('Error', 'El archivo seleccionado no es válido.');
         return;
       }
-  
+
       Alert.alert(
         'Confirmación',
         'Esto sobrescribirá los datos actuales. ¿Deseas continuar?',
@@ -193,13 +228,10 @@ export default function HomeScreen() {
             onPress: async () => {
               try {
                 console.log('📝 Guardando datos en AsyncStorage...');
-  
                 await AsyncStorage.setItem('userName', data.userName || '');
                 await AsyncStorage.setItem('routines', JSON.stringify(data.routines || []));
-  
                 setName(data.userName || '');
                 setRoutines(data.routines || []);
-  
                 console.log('✅ Importación exitosa.');
                 Alert.alert('Importación exitosa', 'Los datos se han importado correctamente.');
               } catch (storageError) {
@@ -266,13 +298,21 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.timerButton}
-          onPress={() => navigation.navigate('TimerScreen')}
-        >
-          <Text style={styles.timerButtonText}>⏱ Cronómetro</Text>
-        </TouchableOpacity>
-
+        <View style={styles.leftFooter}>
+          <TouchableOpacity
+            style={styles.timerButton}
+            onPress={() => navigation.navigate('TimerScreen')}
+          >
+            {/* Se muestra solo el símbolo */}
+            <Text style={styles.timerButtonText}>⏱</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.configFooterButton}
+            onPress={() => navigation.navigate('ConfigurationScreen')}
+          >
+            <Icon name="settings" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
           style={styles.addRoutineButton}
           onPress={() => navigation.navigate('RoutineScreen', { mode: 'add' })}
@@ -327,7 +367,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
-  routineText: { fontSize: 16, color: '#333' },
+  routineText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  editButton: {
+    backgroundColor: 'blue',
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
   deleteButton: {
     backgroundColor: 'red',
     width: 40,
@@ -351,7 +403,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 5,
   },
-  backupButtonText: { color: '#fff', fontSize: 14 },
+  backupButtonText: {
+    color: '#fff',
+    fontSize: 14,
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -360,16 +415,29 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: '#E2E2E2',
   },
+  leftFooter: {
+    flexDirection: 'row',
+  },
   timerButton: {
     backgroundColor: '#FF9500',
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   timerButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  configFooterButton: {
+    backgroundColor: '#000', // Fondo negro
+    padding: 12,
+    marginLeft: 10,
+    borderRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addRoutineButton: {
     backgroundColor: '#007AFF',
